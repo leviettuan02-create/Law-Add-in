@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thông tin văn bản</title>
+    <link rel="stylesheet" href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.1.0/css/fabric.min.css"/>
+    <style>
+        body { 
+            padding: 20px; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            color: #333;
+        }
+        .title { 
+            color: #2b579a; 
+            margin-top: 0; 
+            border-bottom: 2px solid #2b579a;
+            padding-bottom: 10px;
+            text-transform: uppercase;
+            font-size: 18px;
+        }
+        .field { margin-bottom: 15px; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px;}
+        input, textarea { 
+            width: 100%; 
+            padding: 8px; 
+            box-sizing: border-box; 
+            border: 1px solid #ccc; 
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        textarea {
+            resize: none; 
+            overflow-y: auto; 
+            min-height: 38px; 
+            max-height: 120px; 
+        }
+        input[readonly], textarea[readonly] { 
+            background: #e2e2e2; 
+            color: #444;
+            cursor: not-allowed;
+        }
+        .btn-group { 
+            margin-top: 20px; 
+            text-align: right; 
+        }
+        button { 
+            padding: 8px 20px; 
+            cursor: pointer; 
+            margin-left: 10px; 
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .btn-close {
+            background: #fff;
+            border: 1px solid #ccc;
+        }
+        .btn-save { 
+            background: #2b579a; 
+            color: white; 
+            border: none; 
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        td { border: 1px solid #ddd; padding: 8px; }
+        .col-label { font-weight: bold; width: 20%; background-color: #f9f9f9; }
+
+        /* ======================================================= */
+        /* CSS CẤU HÌNH POPUP THÔNG BÁO TỰ CHẾ (THAY THẾ ALERT)    */
+        /* ======================================================= */
+        .alert-overlay {
+            display: none; /* Mặc định ẩn */
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); /* Làm tối nền phía sau */
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .alert-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+            width: 280px;
+            text-align: center;
+        }
+        .alert-box p {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            font-weight: 500;
+            color: #333;
+        }
+        .btn-alert-ok {
+            background: #2b579a;
+            color: white;
+            border: none;
+            padding: 6px 25px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-alert-ok:hover {
+            background: #1e3d6b;
+        }
+    </style>
+</head>
+<body>
+    <h2 id="modalTitle" class="title">Tiêu đề</h2>
+    
+    <div id="contentArea"></div>
+    
+    <div class="btn-group">
+        <button class="btn-close" onclick="closeDialog()">Đóng</button>
+        <button id="submitBtn" class="btn-save" style="display:none;" onclick="handleAction()">Gửi báo cáo</button>
+    </div>
+
+    <div id="customAlert" class="alert-overlay">
+        <div class="alert-box">
+            <p id="alertMessage">Nội dung thông báo...</p>
+            <button id="alertBtn" class="btn-alert-ok">OK</button>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script>
+        Office.onReady(() => {
+            const container = document.getElementById("contentArea");
+            
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const dataString = urlParams.get('data');
+
+                if (!dataString) {
+                    container.innerHTML = "<p style='color:red;'>Lỗi: Không nhận được dữ liệu!</p>";
+                    return;
+                }
+
+                const data = JSON.parse(dataString);
+                const type = data.type; 
+                const item = data.item || {}; 
+                const linhVuc = item.category || item.linhvuc || item.LinhVuc || "Chưa rõ";
+                
+                const getDocumentName = (item) => {
+                    if (item.name) return item.name;
+                    const loaiVB = (item.loaivanban || "").toLowerCase().trim();
+                    if (loaiVB === 'luật') {
+                        return `${item.trichyeu || '[Chưa có trích yếu]'} số ${item.sokyhieu || '[Chưa có số]'}`;
+                    } else {
+                        return `${item.loaivanban || 'Văn bản'} số ${item.sokyhieu || '[Chưa có số]'} của ${item.coquanbanhanh || '[Chưa có cơ quan]'} ${item.trichyeu || ''}`;
+                    }
+                };
+
+                document.getElementById("modalTitle").innerText = data.title || "Chi tiết văn bản";
+
+                if (type === 'details') {
+                    const linkHtml = item.link 
+                        ? `<a href="${item.link}" target="_blank" style="color: #2b579a; text-decoration: underline;">${item.link}</a>` 
+                        : 'Đang cập nhật';
+
+                    container.innerHTML = `
+                        <table>
+                            <tr><td class="col-label">Số ký hiệu</td><td>${item.sokyhieu || 'Đang cập nhật'}</td></tr>
+                            <tr><td class="col-label">Ngày ban hành</td><td>${item.ngaybanhanh || 'Đang cập nhật'}</td></tr>
+                            <tr><td class="col-label">Ngày có hiệu lực</td><td>${item.ngayhieuluc || 'Đang cập nhật'}</td></tr>
+                            <tr><td class="col-label">Loại văn bản</td><td>${item.loaivanban || 'Đang cập nhật'}</td></tr>
+                            <tr><td class="col-label">Cơ quan ban hành</td><td>${item.coquanbanhanh || 'Đang cập nhật'}</td></tr>
+                            <tr><td class="col-label">Người ký</td><td>${item.nguoiky || 'Đang cập nhật'}</td></tr>
+                            <tr><td class="col-label">Trích yếu</td><td>${item.trichyeu || ''}</td></tr>
+                            <tr><td class="col-label">Đường dẫn</td><td>${linkHtml}</td></tr>
+                        </table>
+                    `;
+                } else if (type === 'expired') {
+                    document.getElementById("submitBtn").style.display = "inline-block";
+                    container.innerHTML = `
+                        <div class="field"><label>Lĩnh vực:</label><input type="text" value="${linhVuc}" readonly></div>
+                        <div class="field"><label>Tên văn bản:</label><textarea rows="2" readonly>${getDocumentName(item)}</textarea></div>
+                        <div class="field"><label>Văn bản thay thế <span style="color:red">*</span>:</label><textarea id="inpThayThe" rows="3" placeholder="Nhập văn bản thay thế..." required></textarea></div>
+                        <div class="field"><label>Hiệu lực <span style="color:red">*</span>:</label>
+                        <input type="text" id="inpDate" placeholder="dd/mm/yyyy" oninput="formatDate(event)" maxlength="10" required>
+                        </div>
+                    `;
+                } else if (type === 'error') {
+                    document.getElementById("submitBtn").style.display = "inline-block";
+                    container.innerHTML = `
+                        <div class="field"><label>Lĩnh vực:</label><input type="text" value="${linhVuc}" readonly></div>
+                        <div class="field"><label>Tên văn bản:</label><textarea rows="2" readonly>${getDocumentName(item)}</textarea></div>
+                        <div class="field"><label>Thông tin lỗi <span style="color:red">*</span>:</label><textarea id="inpLoi" rows="6" placeholder="Nhập mô tả lỗi..." required></textarea></div>
+                    `;
+                }
+
+                setTimeout(() => {
+                    const textareas = container.querySelectorAll('textarea');
+                    const autoResize = (el) => {
+                        el.style.height = 'auto'; 
+                        el.style.height = el.scrollHeight + 'px'; 
+                    };
+                    textareas.forEach(ta => {
+                        autoResize(ta); 
+                        ta.addEventListener('input', () => autoResize(ta)); 
+                    });
+                }, 50); 
+
+            } 
+            catch (error) {
+                container.innerHTML = `<p style='color:red;'><b>Hệ thống gặp lỗi:</b> ${error.message}</p>`;
+            }
+        });
+
+        function closeDialog() { 
+            Office.context.ui.messageParent("close"); 
+        }
+        // Quy tắc tự động định dạng và kiểm soát ngày tháng năm
+        function formatDate(event) {
+            const input = event.target;
+            const isDeleting = event.inputType === 'deleteContentBackward';
+            
+            // Tách chuỗi hiện tại ra theo dấu /
+            let parts = input.value.split('/');
+            
+            // Chỉ giữ lại các chữ số
+            for (let i = 0; i < parts.length; i++) {
+                parts[i] = parts[i].replace(/\D/g, '');
+            }
+            
+            // ----------------------------------------------------
+            // 1. XỬ LÝ NGÀY (Cơ bản: Không vượt quá 31)
+            // ----------------------------------------------------
+            if (parts[0]) {
+                if (parts[0].length === 2 && parseInt(parts[0], 10) > 31) {
+                    parts[1] = parts[0][1] + (parts[1] || ''); 
+                    parts[0] = '0' + parts[0][0];              
+                } 
+                else if (parts[0].length > 2) {
+                    parts[1] = parts[0].substring(2) + (parts[1] || '');
+                    parts[0] = parts[0].substring(0, 2);
+                }
+                if (parts[0] === '00') parts[0] = '01';
+            }
+            
+            // ----------------------------------------------------
+            // 2. XỬ LÝ THÁNG (Cơ bản: Không vượt quá 12)
+            // ----------------------------------------------------
+            if (parts[1]) {
+                if (parts[1].length >= 2) {
+                    let monthVal = parts[1].substring(0, 2);
+                    let overFlow = parts[1].substring(2);
+                    
+                    if (parseInt(monthVal, 10) > 12) {
+                        overFlow = monthVal[1] + overFlow;
+                        monthVal = '0' + monthVal[0];
+                    }
+                    
+                    if (['03','04','05','06','07','08','09'].includes(monthVal)) {
+                        parts[1] = monthVal.substring(1); 
+                    } else {
+                        parts[1] = monthVal;
+                    }
+                    
+                    if (overFlow) {
+                        parts[2] = overFlow + (parts[2] || '');
+                    } else if (parts[1].length >= 1 && !isDeleting && parts.length === 2) {
+                        if (parts[1].length === 2 || parseInt(parts[1], 10) > 2) {
+                            parts.push('');
+                        }
+                    }
+                } 
+                else if (parts[1] === '00') {
+                    parts[1] = '1';
+                }
+
+                // Giới hạn nhanh ngày của tháng 2 khi chưa gõ đủ Năm
+                if (parts[0] && parseInt(parts[1], 10) === 2) {
+                    if (parseInt(parts[0], 10) > 29) {
+                        parts[0] = '29'; // Tạm thời chặn ngày > 29 đối với tháng 2
+                    }
+                }
+            }
+            
+            // ----------------------------------------------------
+            // 3. XỬ LÝ NĂM & KIỂM TRA MỐC THỜI GIAN THỰC TẾ
+            // ----------------------------------------------------
+            if (parts[2]) {
+                if (parts[2].length > 4) {
+                    parts[2] = parts[2].substring(0, 4);
+                }
+                
+                // Chỉ kích hoạt kiểm tra khi đã nhập đủ 4 số của năm
+                if (parts[2].length === 4) {
+                    const today = new Date();
+                    const currentYear = today.getFullYear();
+                    const currentMonth = today.getMonth() + 1;
+                    const currentDay = today.getDate();
+
+                    let inputYear = parseInt(parts[2], 10);
+                    let inputMonth = parts[1] ? parseInt(parts[1], 10) : 1;
+                    let inputDay = parts[0] ? parseInt(parts[0], 10) : 1;
+
+                    // 3.1. Xử lý Năm: Nếu gõ năm tương lai -> Lùi về năm nay
+                    if (inputYear > currentYear) {
+                        parts[2] = currentYear.toString();
+                        inputYear = currentYear;
+                    }
+
+                    // 3.2. Xử lý Tháng: Nếu là năm nay, không được gõ tháng tương lai
+                    if (inputYear === currentYear) {
+                        if (inputMonth > currentMonth) {
+                            inputMonth = currentMonth; // Ép lùi về tháng hiện tại
+                            
+                            // Format lại tháng theo chuẩn (bỏ số 0 với tháng 3->9)
+                            let monthStr = inputMonth < 10 ? '0' + inputMonth : inputMonth.toString();
+                            if (['03','04','05','06','07','08','09'].includes(monthStr)) {
+                                parts[1] = monthStr.substring(1);
+                            } else {
+                                parts[1] = monthStr;
+                            }
+                        }
+
+                        // 3.3. Xử lý Ngày: Nếu đã cùng năm và cùng tháng, không được gõ ngày tương lai
+                        if (inputMonth === currentMonth) {
+                            if (inputDay > currentDay) {
+                                inputDay = currentDay; // Ép lùi về ngày hôm nay
+                                parts[0] = inputDay < 10 ? '0' + inputDay : inputDay.toString();
+                            }
+                        }
+                    }
+
+                    // 3.4. KIỂM TRA SỐ NGÀY TỐI ĐA CỦA THÁNG (Đặc biệt là năm nhuận)
+                    let maxDays = 31;
+                    if ([4, 6, 9, 11].includes(inputMonth)) {
+                        maxDays = 30; // Các tháng có 30 ngày
+                    } else if (inputMonth === 2) {
+                        // Tính toán năm nhuận chuẩn xác
+                        const isLeapYear = (inputYear % 4 === 0 && inputYear % 100 !== 0) || (inputYear % 400 === 0);
+                        maxDays = isLeapYear ? 29 : 28;
+                    }
+
+                    // Nếu ngày đã nhập vượt quá số ngày tối đa cho phép của tháng/năm đó -> tự động ép lùi
+                    if (parseInt(parts[0], 10) > maxDays) {
+                        parts[0] = maxDays.toString();
+                    }
+                }
+            }
+            
+            // Ráp các phần lại bằng dấu / và hiển thị ra ô nhập
+            input.value = parts.join('/');
+        }
+        // =======================================================
+        // HÀM HIỂN THỊ POPUP THÔNG BÁO THÔNG MINH
+        // =======================================================
+        function showCustomAlert(message, isSuccess) {
+            const alertOverlay = document.getElementById("customAlert");
+            const alertMessage = document.getElementById("alertMessage");
+            const alertBtn = document.getElementById("alertBtn");
+
+            alertMessage.innerText = message;
+            alertOverlay.style.display = "flex"; // Hiện popup lên chính giữa màn hình
+
+            if (isSuccess) {
+                // NẾU THÀNH CÔNG: Người dùng bấm OK sẽ tắt hết cửa sổ ngay
+                alertBtn.onclick = closeDialog;
+            } else {
+                // NẾU CÓ LỖI (Nhập thiếu dữ liệu/Lỗi mạng): Bấm OK chỉ tắt popup đi để sửa lại form
+                alertBtn.onclick = function() {
+                    alertOverlay.style.display = "none";
+                };
+            }
+        }
+
+        const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbzKSHM-Srd2VqbdxFGwYOVq2zqm8KUF9J3FGg7q3e8gVLyMxfA9Gkq0pSHnwqcKn8LkVg/exec";
+        
+        function handleAction() {
+            const btn = document.getElementById("submitBtn");
+            btn.innerText = "Đang gửi...";
+            btn.disabled = true;
+
+            const loaiBaoCao = document.getElementById("modalTitle").innerText.trim();
+            const inpLinhVuc = document.querySelector('#contentArea input[readonly]');
+            const linhVuc = inpLinhVuc ? inpLinhVuc.value.trim() : "";
+            const txtTenVB = document.querySelector('#contentArea textarea[readonly]');
+            const tenVanBan = txtTenVB ? txtTenVB.value.trim() : "";
+            
+            let vanBanThayThe = "";
+            let hieuLuc = "";
+            let thongTinLoi = "";
+
+            const inpLoi = document.getElementById("inpLoi");
+            const inpThayThe = document.getElementById("inpThayThe");
+            const inpDate = document.getElementById("inpDate");
+
+            if (inpLoi) {
+                thongTinLoi = inpLoi.value.trim();
+                if (!thongTinLoi) {
+                    showCustomAlert("Vui lòng nhập mô tả thông tin lỗi!", false);
+                    btn.innerText = "Gửi báo cáo";
+                    btn.disabled = false;
+                    return;
+                }
+            } else if (inpThayThe && inpDate) {
+                vanBanThayThe = inpThayThe.value.trim();
+                hieuLuc = inpDate.value.trim(); // Lấy trực tiếp chuỗi định dạng dd/mm/yyyy đã gõ
+                // Kiểm tra định dạng ngày đầy đủ độ dài trước khi gửi (Ví dụ phải đủ ít nhất 8-10 ký tự)
+                if (!vanBanThayThe || !hieuLuc || hieuLuc.length < 8) {
+                    showCustomAlert("Vui lòng nhập đầy đủ Văn bản thay thế và Ngày hiệu lực đúng định dạng (dd/mm/yyyy)!", false);
+                    btn.innerText = "Gửi báo cáo";
+                    btn.disabled = false;
+                    return;
+                }
+            }
+            const payload = {
+                loaiBaoCao: loaiBaoCao,
+                linhVuc: linhVuc,
+                tenVanBan: tenVanBan,
+                vanBanThayThe: vanBanThayThe,
+                hieuLuc: hieuLuc,
+                thongTinLoi: thongTinLoi
+            };
+
+            fetch(GOOGLE_SHEET_URL, {
+                method: "POST",
+                body: JSON.stringify(payload),
+                headers: {
+                    "Content-Type": "text/plain;charset=utf-8"
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    // Gọi popup thành công
+                    showCustomAlert("Gửi báo cáo thành công!", true);
+                } else {
+                    showCustomAlert("Có lỗi xảy ra tại hệ thống Google: " + data.message, false);
+                    btn.innerText = "Gửi báo cáo";
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                showCustomAlert("Lỗi kết nối mạng hoặc lỗi CORS! Vui lòng liên hệ quản trị viên.", false);
+                btn.innerText = "Gửi báo cáo";
+                btn.disabled = false;
+            });
+        }
+    </script>    
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Contoso Task Pane Add-in</title>
+
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+
+    <link rel="stylesheet" href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.1.0/css/fabric.min.css"/>
+
+    <link href="taskpane.css" rel="stylesheet" type="text/css" />
+</head>
+
+<body class="ms-font-m">
+    <div id="container">
+        <div class="tabs">
+            <button class="tab-link active" onclick="openTab(event, 'SearchTab')">Tìm kiếm</button>
+            <button class="tab-link" onclick="openTab(event, 'InfoTab')">Thông tin</button>
+        </div>
+
+        <div id="SearchTab" class="tab-content active">
+
+            <div class="field-container" style="margin-bottom: 15px; position: relative; display: flex; align-items: center; gap: 10px;">
+                <label style="margin-left: 8px; font-weight: bold; font-size: 14px; width: 65px; flex-shrink: 0; display: flex; align-items: center; gap: 5px;">Lĩnh vực:</label>
+                <div class="tag-picker" id="tagPicker" style="border: 1px solid #ced4da; border-radius: 4px; padding: 5px; display: flex; flex-wrap: nowrap; background: #fff; cursor: pointer; height: 38px; align-items: center; position: relative; flex: 1; box-sizing: border-box; overflow: hidden;">
+                    <div id="selectedTags" style="display: flex; gap: 5px; overflow: hidden; flex: 1; align-items: center;"></div>
+                    <input type="text" id="tagInput" placeholder="Chọn lĩnh vực..." readonly 
+                        style="border: none; outline: none; width: 100%; font-size: 13px; cursor: pointer; background: transparent; padding: 0;" />
+                    <span class="dropdown-arrow" style="font-size: 10px; color: #666; margin-left: 5px; flex-shrink: 0;">&#9660;</span>
+                </div>
+                <div class="tag-dropdown" id="tagDropdown" style="display: none; position: absolute; top: 100%; right: 0; width: calc(100% - 85px); max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 0 0 4px 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 1000; margin-top: 1px;">
+                    <div id="tagDropdownList"></div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                <label style="margin-left: 8px; font-weight: bold; font-size: 14px; width: 65px; flex-shrink: 0; display: flex; align-items: center; gap: 5px;">Tìm kiếm:</label>
+                <input type="text" id="searchBox" placeholder="Nhập số hiệu hoặc tên..." 
+                    style="flex: 1; height: 38px; padding: 8px 10px; border: 1px solid #ced4da; border-radius: 4px; box-sizing: border-box; outline: none; font-size: 13px;">
+            </div>        
+
+            <div style="border: 1px solid #ccc; padding: 5px; height: 440px; display: flex; flex-direction: column; box-sizing: border-box; background: #fff;">
+                <h3 class="section-title" style="color: #2b579a; font-size: 14px; font-weight: bold; margin: 5px 5px 8px 5px; padding-bottom: 5px; border-bottom: 1.5px solid #2b579a; flex-shrink: 0;">
+                    Danh sách văn bản:
+                </h3>
+                <div id="lawList" style="flex: 1; overflow-y: auto; position: relative;"></div>
+            </div>
+
+            <div id="selectionCount" style="font-style: italic; font-size: 13px; color: #555; margin-top: 5px; margin-right: 15px; text-align: right;">
+                Đã chọn: 0 văn bản
+            </div>
+
+            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+                <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; cursor: pointer;">
+                    <input type="checkbox" id="prefixCheckbox" checked style="margin-top: 2px;"> 
+                    <span>Thêm chữ <b>"Căn cứ"</b> vào đầu mỗi văn bản.</span>
+                </label>
+                <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; cursor: pointer;">
+                    <input type="checkbox" id="suffixCheckbox" checked style="margin-top: 2px;"> 
+                    <span>Thêm dấu <b>";"</b> vào cuối mỗi văn bản.</span>
+                </label>
+            </div>
+
+            <div style="margin-top: 15px; display: flex; gap: 10px;">
+                <button id="insertBtn" style="flex: 1; padding: 10px; background: #2b579a; color: white; border: none; cursor: pointer; font-weight: bold;">
+                    Chèn vào văn bản
+                </button>
+                <button id="clearBtn" style="flex: 1; padding: 10px; background: #d83b01; color: white; border: none; cursor: pointer; font-weight: bold;">
+                    Xóa lựa chọn
+                </button>
+            </div>
+
+            <div style="margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px; display: flex; gap: 10px;">
+                <button id="addLawBtn" style="flex: 1; padding: 10px; background: #107c10; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 4px;">
+                    Thêm mới
+                </button>
+                <button id="manageLawBtn" style="flex: 1; padding: 10px; background: #107c10; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 4px;">
+                    Quản lý
+                </button>
+            </div>
+            
+        </div>
+        <div id="InfoTab" class="tab-content">
+            <div class="author-info">
+                <h4>GIỚI THIỆU</h4>
+                <p style="text-indent: 20px;">Law Add-in được phát triển bởi <strong>Lê Việt Tuấn</strong>, nhằm hỗ trợ người dùng thêm các văn bản pháp luật vào tài liệu (word, excel) một cách nhanh chóng.</p>
+                <p style="text-indent: 20px;">Add-in này phục vụ mục đích cá nhân, do đó dữ liệu không bao gồm toàn bộ các văn bản pháp luật hiện hành. Người dùng có thể tự thêm các văn bản pháp luật bằng cách sử dụng chức năng "Thêm mới". Tuy nhiên, các văn bản thêm mới này chỉ lưu tạm thời, cục bộ trên máy tính người dùng và có khả năng mất bất cứ lúc nào. Nếu muốn thêm vĩnh viễn một văn bản nào đó vào danh sách, vui lòng liên hệ với tác giả theo thông tin bên dưới.</p>
+                <p style="text-indent: 20px;">Nếu có đề xuất cải thiện hoặc muốn đóng góp thêm tính năng, hãy liên hệ với mình nhé.</p>
+                <p style="text-indent: 20px;">Cảm ơn sự ủng hộ của mọi người!</p>
+                <br>
+                <h4>THÔNG TIN</h4>
+                <p style="text-indent: 20px;"><strong>Tên phần mềm:</strong> Law Add-in</p>
+                <p style="text-indent: 20px;"><strong>Phiên bản:</strong> 1.06.06.26</p>
+                <p style="text-indent: 20px;"><strong>Tác giả:</strong> Lê Việt Tuấn</p>
+                <p style="text-indent: 20px;"><strong>SĐT/Zalo:</strong> 0354223186</p>
+                <p style="text-indent: 20px;"><strong>Email:</strong> <a href="mailto:leviettuan02@gmail.com" class="email-link">leviettuan02@gmail.com</a></p>            </div>
+        </div>
+
+    </div>
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="menu-item" onclick="openModal('details')">Chi tiết văn bản</div>
+        <div class="menu-item" onclick="openModal('expired')">Báo văn bản hết hạn</div>
+        <div class="menu-item" onclick="openModal('error')">Báo lỗi văn bản</div>
+    </div>
+</body>
+
+</html>

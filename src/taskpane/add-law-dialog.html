@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thêm văn bản mới</title>
+    <link rel="stylesheet" href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.1.0/css/fabric.min.css"/>
+    <style>
+        body { padding: 15px; font-family: 'Segoe UI', sans-serif; background: #f4f7f9; color: #333; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #2b579a; font-size: 18px; text-transform: uppercase; border-bottom: 2px solid #2b579a; padding-bottom: 10px; margin-top: 0; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .field { margin-bottom: 5px; }
+        .full-width { grid-column: span 2; }
+        
+        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; color: #444; }
+        label span { color: #d83b01; font-weight: bold; } /* Dấu sao đỏ cho mục bắt buộc */
+        
+        input, textarea { 
+            width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; 
+            box-sizing: border-box; font-size: 14px; transition: border-color 0.2s;  font-family: inherit;
+        }
+        input:focus, textarea:focus { border-color: #2b579a; outline: none; box-shadow: 0 0 0 2px rgba(43,87,154,0.1); }
+
+        textarea { resize: none; height: 110px;}
+
+        .footer { margin-top: 20px; display: flex; gap: 12px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-save { background: #107c10; color: white; }
+        .btn-save:hover { background: #0b5a0b; }
+        .btn-cancel { background: #a0a0a0; color: white; }
+        .btn-cancel:hover { background: #808080; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>NHẬP VĂN BẢN MỚI</h2>
+        
+        <div class="grid">
+            <div class="field">
+                <label>Lĩnh vực <span>(*)</span></label>
+                <input type="text" id="category" placeholder="Vd: Đất đai, Thuế...">
+                <span id="error-category" style="color: red; font-size: 11px; display: none;">Vui lòng nhập vào mục này!</span>
+            </div>
+            <div class="field">
+                <label>Số ký hiệu <span>(*)</span></label>
+                <input type="text" id="sokyhieu" placeholder="VD: 45/2013/QH13">
+                <span id="error-sokyhieu" style="color: red; font-size: 11px; display: none;">Vui lòng nhập vào mục này!</span>
+            </div>
+
+            <div class="field">
+                <label>Ngày ban hành <span>(*)</span></label>
+                <input type="text" id="ngaybanhanh" placeholder="dd/mm/yyyy" oninput="formatDateInput(event)" maxlength="10">
+                <span id="error-ngaybanhanh" style="color: red; font-size: 11px; display: none;">Vui lòng nhập vào mục này!</span>
+            </div>
+
+            <div class="field">
+                <label>Ngày có hiệu lực</label>
+                <input type="text" id="ngayhieuluc" placeholder="dd/mm/yyyy" oninput="formatDateInput(event)" maxlength="10">
+            </div>
+
+            <div class="field">
+                <label>Loại văn bản <span>(*)</span></label>
+                <input type="text" id="loaivanban" placeholder="VD: Luật, Nghị định">
+                <span id="error-loaivanban" style="color: red; font-size: 11px; display: none;">Vui lòng nhập vào mục này!</span>
+            </div>
+
+            <div class="field">
+                <label>Cơ quan ban hành <span>(*)</span></label>
+                <input type="text" id="coquanbanhanh" placeholder="VD: Quốc hội">
+                <span id="error-coquanbanhanh" style="color: red; font-size: 11px; display: none;">Vui lòng nhập vào mục này!</span>
+            </div>
+
+            <div class="field">
+                <label>Người ký</label>
+                <input type="text" id="nguoiky" placeholder="Nhập họ tên người ký">
+            </div>
+
+            <div class="field full-width">
+                <label>Trích yếu <span>(*)</span></label>
+                <textarea id="trichyeu" placeholder="Nhập nội dung trích yếu đầy đủ của văn bản..."></textarea>
+                <span id="error-trichyeu" style="color: red; font-size: 11px; display: none;">Vui lòng nhập vào mục này!</span>
+            </div>
+
+            <div class="field full-width">
+                <label>Đường dẫn (Link)</label>
+                <input type="text" id="link" placeholder="https://...">
+            </div>
+
+        </div>
+
+        <div class="footer">
+            <button class="btn btn-save" onclick="saveData()">Lưu văn bản</button>
+            <button class="btn btn-cancel" onclick="closeDialog()">Hủy bỏ</button>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script>
+        Office.onReady();
+
+        function saveData() {
+            // Danh sách các trường bắt buộc và thông báo tương ứng
+            const requiredFields = [
+                { id: 'category', msg: 'Vui lòng nhập vào mục này!' },
+                { id: 'sokyhieu', msg: 'Vui lòng nhập vào mục này!' },
+                { id: 'ngaybanhanh', msg: 'Vui lòng nhập vào mục này!' },
+                { id: 'loaivanban', msg: 'Vui lòng nhập vào mục này!' },
+                { id: 'coquanbanhanh', msg: 'Vui lòng nhập vào mục này!' },
+                { id: 'trichyeu', msg: 'Vui lòng nhập vào mục này!' }
+            ];
+
+            let hasError = false;
+            const data = {};
+
+            // 1. Kiểm tra các trường bắt buộc
+            requiredFields.forEach(field => {
+                const input = document.getElementById(field.id);
+                const errorSpan = document.getElementById('error-' + field.id);
+                const value = input.value.trim();
+
+                if (!value) {
+                    // Nếu trống: Hiện lỗi
+                    input.style.borderColor = "red";
+                    if (errorSpan) {
+                        errorSpan.innerText = field.msg;
+                        errorSpan.style.display = "block";
+                    }
+                    hasError = true;
+                } else {
+                    // Nếu có dữ liệu: Ẩn lỗi, trả lại màu cũ
+                    input.style.borderColor = "#ced4da";
+                    if (errorSpan) {
+                        errorSpan.style.display = "none";
+                    }
+                    data[field.id] = value;
+                }
+            });
+
+            // 2. Nếu có bất kỳ lỗi nào thì dừng lại, không chạy tiếp
+            if (hasError) {
+                return; 
+            }
+
+            // 3. Lấy thêm các trường không bắt buộc (nếu có)
+            data.ngayhieuluc = document.getElementById('ngayhieuluc').value.trim();
+            data.nguoiky = document.getElementById('nguoiky').value.trim();
+            data.link = document.getElementById('link').value.trim();
+
+            // 4. XỬ LÝ CHUỖI HIỂN THỊ ĐẦY ĐỦ CHO TASKPANE
+            // Hàm phụ: Chuyển đổi định dạng ngày ban hành
+            function formatNgayThangNam(dateStr) {
+                if (!dateStr) return "";
+                // Nếu ngày nhập từ thẻ <input type="date"> (định dạng máy tính YYYY-MM-DD)
+                if (dateStr.includes('-')) {
+                    const parts = dateStr.split('-');
+                    if (parts.length === 3) return `ngày ${parts[2]} tháng ${parts[1]} năm ${parts[0]}`;
+                } 
+                // Nếu ngày người dùng tự nhập tay dạng DD/MM/YYYY
+                else if (dateStr.includes('/')) {
+                    const parts = dateStr.split('/');
+                    if (parts.length === 3) return `ngày ${parts[0]} tháng ${parts[1]} năm ${parts[2]}`;
+                }
+                return dateStr; // Trả về nguyên gốc nếu không đúng 2 dạng trên
+            }
+
+            const formattedDate = formatNgayThangNam(data.ngaybanhanh);
+
+            // Ghi đè data.name bằng chuỗi đầy đủ để Taskpane tự động hiển thị
+            // Cấu trúc: Loại văn bản + số + Số ký hiệu + ngày... + của + Cơ quan ban hành + Trích yếu
+            data.name = `${data.loaivanban} số ${data.sokyhieu} ${formattedDate} của ${data.coquanbanhanh} ${data.trichyeu}`;
+
+            // 5. Gửi dữ liệu về taskpane.js nếu tất cả hợp lệ
+            Office.context.ui.messageParent(JSON.stringify({ 
+                action: 'addLaw', 
+                data: data 
+            }));
+        }
+
+        // Hàm tự động định dạng ngày tháng và chặn vượt quá ngày hiện tại
+        function formatDateInput(event) {
+            const input = event.target;
+            const isDeleting = event.inputType === 'deleteContentBackward';
+            
+            // Tách chuỗi hiện tại ra theo dấu /
+            let parts = input.value.split('/');
+            
+            // Chỉ giữ lại các chữ số
+            for (let i = 0; i < parts.length; i++) {
+                parts[i] = parts[i].replace(/\D/g, '');
+            }
+            
+            // ----------------------------------------------------
+            // 1. XỬ LÝ NGÀY (Cơ bản: Không vượt quá 31)
+            // ----------------------------------------------------
+            if (parts[0]) {
+                if (parts[0].length === 2 && parseInt(parts[0], 10) > 31) {
+                    parts[1] = parts[0][1] + (parts[1] || ''); 
+                    parts[0] = '0' + parts[0][0];              
+                } 
+                else if (parts[0].length > 2) {
+                    parts[1] = parts[0].substring(2) + (parts[1] || '');
+                    parts[0] = parts[0].substring(0, 2);
+                }
+                if (parts[0] === '00') parts[0] = '01';
+            }
+            
+            // ----------------------------------------------------
+            // 2. XỬ LÝ THÁNG (Cơ bản: Không vượt quá 12)
+            // ----------------------------------------------------
+            if (parts[1]) {
+                if (parts[1].length >= 2) {
+                    let monthVal = parts[1].substring(0, 2);
+                    let overFlow = parts[1].substring(2);
+                    
+                    if (parseInt(monthVal, 10) > 12) {
+                        overFlow = monthVal[1] + overFlow;
+                        monthVal = '0' + monthVal[0];
+                    }
+                    
+                    if (['03','04','05','06','07','08','09'].includes(monthVal)) {
+                        parts[1] = monthVal.substring(1); 
+                    } else {
+                        parts[1] = monthVal;
+                    }
+                    
+                    if (overFlow) {
+                        parts[2] = overFlow + (parts[2] || '');
+                    } else if (parts[1].length >= 1 && !isDeleting && parts.length === 2) {
+                        if (parts[1].length === 2 || parseInt(parts[1], 10) > 2) {
+                        parts.push('');
+                        }
+                    }
+                } 
+                else if (parts[1] === '00') {
+                    parts[1] = '1';
+                }
+
+                // [THÊM MỚI] Giới hạn nhanh ngày của tháng 2 khi chưa gõ đủ Năm
+                if (parts[0] && parseInt(parts[1], 10) === 2) {
+                    if (parseInt(parts[0], 10) > 29) {
+                        parts[0] = '29'; // Tạm thời chặn ngày > 29 đối với tháng 2
+                    }
+                }
+            }
+            
+            // ----------------------------------------------------
+            // 3. XỬ LÝ NĂM & KIỂM TRA MỐC THỜI GIAN THỰC TẾ
+            // ----------------------------------------------------
+            if (parts[2]) {
+                if (parts[2].length > 4) {
+                    parts[2] = parts[2].substring(0, 4);
+                }
+                
+                // TRỌNG TÂM: Chỉ kích hoạt kiểm tra khi đã nhập đủ 4 số của năm
+                if (parts[2].length === 4) {
+                    const today = new Date();
+                    const currentYear = today.getFullYear();
+                    const currentMonth = today.getMonth() + 1; // Trong JS, tháng bắt đầu từ 0 nên phải +1
+                    const currentDay = today.getDate();
+
+                    let inputYear = parseInt(parts[2], 10);
+                    let inputMonth = parts[1] ? parseInt(parts[1], 10) : 1;
+                    let inputDay = parts[0] ? parseInt(parts[0], 10) : 1;
+
+                    // 3.1. Xử lý Năm: Nếu gõ năm tương lai -> Lùi về năm nay
+                    if (inputYear > currentYear) {
+                        parts[2] = currentYear.toString();
+                        inputYear = currentYear;
+                    }
+
+                    // 3.2. Xử lý Tháng: Nếu là năm nay, không được gõ tháng tương lai
+                    if (inputYear === currentYear) {
+                        if (inputMonth > currentMonth) {
+                            inputMonth = currentMonth; // Ép lùi về tháng hiện tại
+                            
+                            // Format lại tháng theo chuẩn (bỏ số 0 với tháng 3->9)
+                            let monthStr = inputMonth < 10 ? '0' + inputMonth : inputMonth.toString();
+                            if (['03','04','05','06','07','08','09'].includes(monthStr)) {
+                                parts[1] = monthStr.substring(1);
+                            } else {
+                                parts[1] = monthStr;
+                            }
+                        }
+
+                        // 3.3. Xử lý Ngày: Nếu đã cùng năm và cùng tháng, không được gõ ngày tương lai
+                        if (inputMonth === currentMonth) {
+                            if (inputDay > currentDay) {
+                                inputDay = currentDay; // Ép lùi về ngày hôm nay
+                                parts[0] = inputDay < 10 ? '0' + inputDay : inputDay.toString();
+                            }
+                        }
+                    }
+
+                    // [THÊM MỚI] 3.4. KIỂM TRA SỐ NGÀY TỐI ĐA CỦA THÁNG (Đặc biệt là năm nhuận)
+                    let maxDays = 31;
+                    if ([4, 6, 9, 11].includes(inputMonth)) {
+                        maxDays = 30; // Các tháng có 30 ngày
+                    } else if (inputMonth === 2) {
+                        // Tính toán năm nhuận: Chia hết cho 4 và không chia hết cho 100, HOẶC chia hết cho 400
+                        const isLeapYear = (inputYear % 4 === 0 && inputYear % 100 !== 0) || (inputYear % 400 === 0);
+                        maxDays = isLeapYear ? 29 : 28;
+                    }
+
+                    // Nếu ngày đã nhập vượt quá số ngày tối đa cho phép của tháng/năm đó -> tự động ép lùi
+                    if (parseInt(parts[0], 10) > maxDays) {
+                        parts[0] = maxDays.toString();
+                    }
+                }
+            }
+            
+            // Ráp các phần lại bằng dấu / và hiển thị ra ô nhập
+            input.value = parts.join('/');
+        }
+
+        // Hàm đóng cửa sổ và không làm gì cả
+        function closeDialog() {
+            Office.context.ui.messageParent("close");
+        }
+    </script>
+</body>
+</html>
